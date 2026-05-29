@@ -52,35 +52,41 @@ def find_wechat_window() -> int | None:
 
 
 def lock_wechat(hwnd: int) -> bool:
-    """激活微信窗口并发送 Ctrl+L 锁定热键。"""
-    VK_MENU = 0x12    # Alt
+    """发送 Ctrl+L 锁定热键给微信窗口。
+    先尝试直接 PostMessage（不弹窗），失败则短暂激活窗口后发送。
+    """
+    WM_KEYDOWN = 0x0100
+    WM_KEYUP = 0x0101
     VK_CONTROL = 0x11
     VK_L = 0x4C
-    KEYEVENTF_KEYUP = 0x0002
 
-    # 恢复窗口（如果最小化了）
-    SW_RESTORE = 9
-    ctypes.windll.user32.ShowWindow(hwnd, SW_RESTORE)
+    user32 = ctypes.windll.user32
+
+    # 方法1：直接 PostMessage 到微信窗口（无需激活/显示窗口）
+    user32.PostMessageW(hwnd, WM_KEYDOWN, VK_CONTROL, 0)
+    user32.PostMessageW(hwnd, WM_KEYDOWN, VK_L, 0)
+    user32.PostMessageW(hwnd, WM_KEYUP, VK_L, 0)
+    user32.PostMessageW(hwnd, WM_KEYUP, VK_CONTROL, 0)
     time.sleep(0.3)
 
-    # Alt 键技巧：让系统认为我们有前台权限
-    ctypes.windll.user32.keybd_event(VK_MENU, 0, 0, 0)
-    time.sleep(0.05)
-    ctypes.windll.user32.keybd_event(VK_MENU, 0, KEYEVENTF_KEYUP, 0)
-    time.sleep(0.05)
+    # 方法2：如果方法1无效（最小化到托盘时），短暂激活窗口再发
+    # 检查窗口是否最小化，是的话暂时恢复、发键、再最小化
+    SW_MINIMIZE = 6
+    SW_RESTORE = 9
+    if user32.IsIconic(hwnd):
+        user32.ShowWindow(hwnd, SW_RESTORE)
+        time.sleep(0.3)
+        user32.SetForegroundWindow(hwnd)
+        time.sleep(0.1)
 
-    # 尝试将微信带到前台（如果失败也不影响热键发送）
-    ctypes.windll.user32.SetForegroundWindow(hwnd)
-    time.sleep(0.2)
+        user32.keybd_event(VK_CONTROL, 0, 0, 0)
+        user32.keybd_event(VK_L, 0, 0, 0)
+        user32.keybd_event(VK_L, 0, 2, 0)
+        user32.keybd_event(VK_CONTROL, 0, 2, 0)
+        time.sleep(0.3)
 
-    # 发送 Ctrl+L
-    ctypes.windll.user32.keybd_event(VK_CONTROL, 0, 0, 0)
-    time.sleep(0.05)
-    ctypes.windll.user32.keybd_event(VK_L, 0, 0, 0)
-    time.sleep(0.05)
-    ctypes.windll.user32.keybd_event(VK_L, 0, KEYEVENTF_KEYUP, 0)
-    time.sleep(0.05)
-    ctypes.windll.user32.keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, 0)
+        # 最小化回去
+        user32.ShowWindow(hwnd, SW_MINIMIZE)
 
     return True
 
