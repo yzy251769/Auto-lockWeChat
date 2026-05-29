@@ -1,0 +1,3 @@
+# 微信自动上锁程序
+# 纯 Python 标准库 + ctypes，无需额外安装任何第三方包
+# 直接运行: python wechat_auto_lock.py
