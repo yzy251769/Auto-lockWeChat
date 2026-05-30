@@ -1,8 +1,5 @@
 @echo off
-REM 微信自动上锁 - 快捷启动脚本
-REM 双击此文件即可后台运行
-
+REM 微信自动上锁 - 后台静默启动（无窗口）
 chcp 65001 >nul
 set PYTHONIOENCODING=utf-8
-python wechat_auto_lock.py %*
-pause
+start "" /b pythonw "%~dp0wechat_auto_lock.py" %*
