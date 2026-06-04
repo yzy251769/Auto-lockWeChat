@@ -15,6 +15,9 @@ import time
 import argparse
 import sys
 
+# 隐藏控制台窗口（仅在本程序内部生效，不影响其他窗口）
+ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), 0)
+
 
 # ── Windows API 定义 ──────────────────────────────────────────
 
@@ -124,25 +127,30 @@ def main():
     print(f"   检测间隔: {args.check}秒")
     print(f"   按 Ctrl+C 退出\n")
 
-    locked = False  # 是否已发送锁定信号
+    locked = False
 
     try:
         while True:
+            hwnd = find_wechat_window()
+
+            if not hwnd:
+                # 微信未运行，等待后重试
+                if locked:
+                    locked = False
+                time.sleep(30)
+                continue
+
+            # 微信在运行，检测空闲
             idle = get_idle_seconds()
 
             if idle >= args.timeout:
                 if not locked:
-                    hwnd = find_wechat_window()
-                    if hwnd:
-                        print(f"[{time.strftime('%H:%M:%S')}] 空闲 {format_time(idle)}，正在锁定微信...")
-                        if lock_wechat(hwnd):
-                            print(f"[{time.strftime('%H:%M:%S')}] [OK] 微信已锁定")
-                            locked = True
-                    else:
-                        print(f"[{time.strftime('%H:%M:%S')}] [WARN] 空闲超时但未找到微信窗口，请确保微信正在运行")
+                    print(f"[{time.strftime('%H:%M:%S')}] 空闲 {format_time(idle)}，正在锁定微信...")
+                    if lock_wechat(hwnd):
+                        print(f"[{time.strftime('%H:%M:%S')}] [OK] 微信已锁定")
+                        locked = True
             else:
                 if locked:
-                    # 用户回来了，重置锁定状态
                     print(f"[{time.strftime('%H:%M:%S')}] [USER] 检测到用户活动，重置监控状态")
                     locked = False
 
